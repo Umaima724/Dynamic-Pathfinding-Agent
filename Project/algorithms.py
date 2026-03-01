@@ -18,21 +18,27 @@ def reconstruct_path(goal):
     while current.parent:
         path.append(current)
         current = current.parent
+    path.append(current)
     return path
 
 
 def search(grid, start, goal, heuristic, use_g_cost=True):
     open_set = []
     count = 0
-    heapq.heappush(open_set, (0, count, start))
 
     start.g = 0
     start.f = heuristic(start, goal)
+
+    heapq.heappush(open_set, (start.f, count, start))
 
     visited_nodes = []
 
     while open_set:
         current = heapq.heappop(open_set)[2]
+
+        if current.is_wall:
+            continue
+
         current.is_visited = True
         visited_nodes.append(current)
 

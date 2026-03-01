@@ -1,6 +1,7 @@
 # main.py
 
 import pygame
+import time
 from grid import Grid
 from algorithms import search, manhattan, euclidean
 from dynamic import spawn_obstacle
@@ -27,6 +28,7 @@ BLUE = (0,0,255)
 YELLOW = (255,255,0)
 CYAN = (0,255,255)
 GREY = (200,200,200)
+ORANGE = (255,165,0)
 
 grid = Grid(ROWS, COLS)
 metrics = Metrics()
@@ -34,6 +36,10 @@ metrics = Metrics()
 algorithm_type = "A*"
 heuristic_type = "Manhattan"
 dynamic_mode = False
+
+agent = grid.start
+current_path = []
+moving = False
 
 
 def draw():
@@ -45,7 +51,9 @@ def draw():
             y = node.row * CELL_SIZE
 
             color = WHITE
-            if node.is_start:
+            if node == agent:
+                color = ORANGE
+            elif node.is_start:
                 color = GREEN
             elif node.is_goal:
                 color = RED
@@ -70,14 +78,14 @@ def draw():
     pygame.display.update()
 
 
-def run_search():
+def calculate_path(start_node):
     grid.reset_algorithm()
     metrics.start_timer()
 
     heuristic = manhattan if heuristic_type == "Manhattan" else euclidean
     use_g = True if algorithm_type == "A*" else False
 
-    path, visited = search(grid, grid.start, grid.goal, heuristic, use_g)
+    path, visited = search(grid, start_node, grid.goal, heuristic, use_g)
 
     metrics.stop_timer()
     metrics.update(visited, path)
@@ -87,19 +95,40 @@ def run_search():
             if not node.is_start and not node.is_goal:
                 node.is_path = True
 
+    return path
+
 
 def main():
-    global grid
-    global metrics
-    global algorithm_type, heuristic_type, dynamic_mode
+    global dynamic_mode, algorithm_type, heuristic_type
+    global agent, current_path, moving
 
+    clock = pygame.time.Clock()
     running = True
 
     while running:
-        draw()
+        clock.tick(60)
 
-        if dynamic_mode:
-            spawn_obstacle(grid, 0.02)
+        if moving and current_path:
+            next_node = current_path.pop(0)
+
+            # If obstacle spawned on next step → replan
+            if next_node.is_wall:
+                current_path = calculate_path(agent)
+                continue
+
+            agent = next_node
+            pygame.time.delay(80)
+
+            # Dynamic spawning
+            if dynamic_mode:
+                spawned = spawn_obstacle(grid, 0.05)
+                if spawned and spawned in current_path:
+                    current_path = calculate_path(agent)
+
+            if agent == grid.goal:
+                moving = False
+
+        draw()
 
         for event in pygame.event.get():
 
@@ -116,15 +145,22 @@ def main():
             if event.type == pygame.KEYDOWN:
 
                 if event.key == pygame.K_SPACE:
-                    run_search()
+                    agent = grid.start
+                    current_path = calculate_path(agent)
+                    if current_path:
+                        current_path.pop()  # remove goal duplication
+                        current_path.reverse()
+                        moving = True
 
                 if event.key == pygame.K_r:
-                   grid.clear_walls()
-                   grid.generate_random_obstacles(0.3)
+                    grid.clear_walls()
+                    grid.generate_random_obstacles(0.3)
 
                 if event.key == pygame.K_c:
-                   grid.clear_walls()
-                   grid.reset_algorithm()
+                    grid.clear_walls()
+                    grid.reset_algorithm()
+                    agent = grid.start
+                    moving = False
 
                 if event.key == pygame.K_a:
                     algorithm_type = "A*" if algorithm_type == "GBFS" else "GBFS"
