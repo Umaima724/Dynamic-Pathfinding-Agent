@@ -16,6 +16,12 @@ class Grid:
 
         self.start.is_start = True
         self.goal.is_goal = True
+    
+    def clear_walls(self):
+        for row in self.grid:
+            for node in row:
+                if not node.is_start and not node.is_goal:
+                   node.is_wall = False
 
     def reset_algorithm(self):
         for row in self.grid:
